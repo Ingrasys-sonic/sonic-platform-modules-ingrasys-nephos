@@ -1,6 +1,6 @@
 platform-driver (1.0.0) unstable; urgency=low
 
-  * Add support for S9130-32X series
+  * Add support for S9130-32X, S9230-64X series
 
  -- developer <developer@ingrasys.com>  Wed, 29 Mar 2017 11:00:00 +0800
 

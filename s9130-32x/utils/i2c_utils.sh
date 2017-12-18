@@ -314,6 +314,8 @@ function _i2c_init {
     ONOFF_LED="on"
     echo "${COLOR_LED} ${ONOFF_LED}"
     _i2c_sys_led
+
+    _config_rmem
 }
 
 #I2C Deinit
@@ -1565,6 +1567,11 @@ function _util_input_check {
         echo "Please input number $2~$3"        
         exit
     fi
+}
+
+#Increase read socket buffer for CoPP Test
+function _config_rmem {
+    echo "109430400" > /proc/sys/net/core/rmem_max
 }
 
 #Main Function
