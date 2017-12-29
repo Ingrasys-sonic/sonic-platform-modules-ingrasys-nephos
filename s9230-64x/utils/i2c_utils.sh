@@ -107,8 +107,8 @@ I2C_BUS_PSU_STAT=${I2C_BUS_MAIN}
 I2C_BUS_FANTRAY_LED=${I2C_BUS_MAIN}
 I2C_BUS_MB_EEPROM=${I2C_BUS_MAIN}
 I2C_BUS_CB_EEPROM=${I2C_BUS_MAIN}
-I2C_BUS_PSU1_EEPROM=${NUM_MUX_9546_0_CH0}
-I2C_BUS_PSU2_EEPROM=${NUM_MUX_9546_0_CH1}
+I2C_BUS_PSU1_EEPROM=${NUM_MUX_9546_0_CH1}
+I2C_BUS_PSU2_EEPROM=${NUM_MUX_9546_0_CH0}
 I2C_BUS_CPLD1=${NUM_MUX_9548_0_CH0}
 I2C_BUS_CPLD2=${NUM_MUX_9548_0_CH1}
 I2C_BUS_CPLD3=${NUM_MUX_9548_0_CH2}
@@ -272,15 +272,15 @@ function _help {
     echo "         : ${0} i2c_cb_eeprom_get"
     #echo "         : ${0} i2c_eeprom_sync"
     echo "         : ${0} i2c_qsfp_eeprom_get [${MIN_QSFP_PORT_NUM}-${MAX_QSFP_PORT_NUM}]"
-    #echo "         : ${0} i2c_sfp_eeprom_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
+    echo "         : ${0} i2c_sfp_eeprom_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
     echo "         : ${0} i2c_qsfp_eeprom_init new|delete"
-    #echo "         : ${0} i2c_sfp_eeprom_init new|delete"
+    echo "         : ${0} i2c_sfp_eeprom_init new|delete"
     echo "         : ${0} i2c_mb_eeprom_init new|delete"
     echo "         : ${0} i2c_cb_eeprom_init new|delete"
     echo "         : ${0} i2c_qsfp_status_get [${MIN_QSFP_PORT_NUM}-${MAX_QSFP_PORT_NUM}]"
-    #echo "         : ${0} i2c_sfp_status_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
+    echo "         : ${0} i2c_sfp_status_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
     echo "         : ${0} i2c_qsfp_type_get [${MIN_QSFP_PORT_NUM}-${MAX_QSFP_PORT_NUM}]"
-    #echo "         : ${0} i2c_sfp_type_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
+    echo "         : ${0} i2c_sfp_type_get [${MIN_SFP_PORT_NUM}-${MAX_SFP_PORT_NUM}]"
     echo "         : ${0} i2c_board_type_get"
     echo "         : ${0} i2c_bmc_board_type_get"
     echo "         : ${0} i2c_cpld_version"
@@ -290,11 +290,11 @@ function _help {
     echo "         : ${0} i2c_led_fan_tray_status_set"
     echo "         : ${0} i2c_test_all"
     echo "         : ${0} i2c_sys_led green|amber"
-    echo "         : ${0} i2c_fan_led green|amber"
-    echo "         : ${0} i2c_psu1_led green|amber"
-    echo "         : ${0} i2c_psu2_led green|amber"
+    echo "         : ${0} i2c_fan_led green|amber|off"
+    echo "         : ${0} i2c_psu1_led green|amber|off"
+    echo "         : ${0} i2c_psu2_led green|amber|off"
     echo "         : ${0} i2c_fan_tray_led green|amber on|off [1-4]"
-    #echo "         : ${0} i2c_10g_mux cpu|fp"
+    echo "         : ${0} i2c_10g_mux cpu|fp"
     echo "----------------------------------------------------"
 }
 
@@ -774,7 +774,7 @@ function _i2c_led_psu_status_set {
             _i2c_psu1_led
         fi
     else
-        COLOR_LED="green"
+        COLOR_LED="off"
         echo "${COLOR_LED}"
         _i2c_psu1_led
     fi
@@ -792,7 +792,7 @@ function _i2c_led_psu_status_set {
             _i2c_psu2_led
         fi
     else
-        COLOR_LED="green"
+        COLOR_LED="off"
         echo "${COLOR_LED}"
         _i2c_psu2_led
     fi
@@ -1134,12 +1134,9 @@ function _i2c_psu_init {
     echo "# Description: I2C PSU Init"
     echo "========================================================="
     modprobe ingrasys_s9230_64x_psu
+
     echo "psu1 ${I2C_ADDR_PSU1_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU1_EEPROM}/new_device
     echo "psu2 ${I2C_ADDR_PSU2_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU2_EEPROM}/new_device
-
-    #fix first read for psu_eeprom may return invalid data
-    cat ${PATH_SYSFS_PSU1}/psu_eeprom 1>/dev/null
-    cat ${PATH_SYSFS_PSU2}/psu_eeprom 1>/dev/null
 }
 
 #Deinit PSU Kernel Module
@@ -1338,6 +1335,11 @@ function _i2c_fan_led {
         output_reg=${REG_PORT0_OUT}
         mask=0x60
         value=0x40
+    elif [ "${COLOR_LED}" == "off" ]; then
+        # set fan_led_en (0.6) = 0 & fan_led_y (0.5) = 0
+        output_reg=${REG_PORT0_OUT}
+        mask=0x60
+        value=0x00
     else
         echo "Invalid Parameters, Exit!!!"
         _help
@@ -1361,6 +1363,11 @@ function _i2c_psu1_led {
         output_reg=${REG_PORT0_OUT}
         mask=0x18
         value=0x10
+    elif [ "${COLOR_LED}" == "off" ]; then
+        # set psu1_pwr_ok_oe (0.4) = 0 & psu1_led_y (0.3) = 0
+        output_reg=${REG_PORT0_OUT}
+        mask=0x18
+        value=0x00
     else
         echo "Invalid Parameters, Exit!!!"
         _help
@@ -1384,6 +1391,11 @@ function _i2c_psu2_led {
         output_reg=${REG_PORT0_OUT}
         mask=0x06
         value=0x04
+    elif [ "${COLOR_LED}" == "off" ]; then
+        # set psu0_pwr_ok_oe (0.2) = 0 & psu0_led_y (0.1) = 0
+        output_reg=${REG_PORT0_OUT}
+        mask=0x06
+        value=0x00
     else
         echo "Invalid Parameters, Exit!!!"
         _help
@@ -1677,10 +1689,10 @@ function _i2c_10g_mux {
         #Set XE1: CH3 D_OUT1-S_INB1 VOD
         _i2c_set $i2c_bus $i2c_addr 0x25 $mask 0xab
         #Enable auto negotiation of XE ports
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x11 data=0x0'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x10 data=0x0'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x0 data=0x2200'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x1 addr=0x96 data=0x2200'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x11 data=0x80'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x10 data=0x01'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x0 data=0x3200'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x1 addr=0x96 data=0x2'"
         #delay 1 sec
         sleep 1
 
@@ -1718,10 +1730,10 @@ function _i2c_10g_mux {
         #Set XE1: CH3 D_OUT1-S_INB1 VOD
         _i2c_set $i2c_bus $i2c_addr 0x25 $mask 0xab
         #Enable auto negotiation of XE ports
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x11 data=0x80'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x10 data=0x01'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x0 data=0x3200'"
-        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x1 addr=0x96 data=0x2'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x11 data=0x0'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x10 data=0x0'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x7 addr=0x0 data=0x2200'"
+        eval "npx_diag 'phy set mdio portlist=129,130 devad=0x1 addr=0x96 data=0x2200'"
         #delay 1 sec
         sleep 1
 

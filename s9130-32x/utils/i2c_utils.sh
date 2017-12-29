@@ -145,6 +145,10 @@ I2C_ADDR_TMP75_CB=0x4F # on cpu board
 I2C_ADDR_TMP75_BB=0x4A # on bmc board
 I2C_ADDR_QSFP_EEPROM=0x50
 
+#sysfs
+PATH_SYSFS_PSU1="${PATH_SYS_I2C_DEVICES}/${I2C_BUS_PSU1_EEPROM}-$(printf "%04x" $I2C_ADDR_PSU1_EEPROM)"
+PATH_SYSFS_PSU2="${PATH_SYS_I2C_DEVICES}/${I2C_BUS_PSU2_EEPROM}-$(printf "%04x" $I2C_ADDR_PSU2_EEPROM)"
+
 #ACTIVE LOW enable flag
 ACTIVE_LOW_EN=1
 ACTIVE_HIGH_EN=0
@@ -295,6 +299,7 @@ function _i2c_init {
     _i2c_io_exp_init
     _i2c_gpio_init
     _i2c_sensors_init
+    _i2c_psu_init
     
     # Init LED_CLR register (pull shift register out of reset), should be after io exp init
     _port_led_clr_init
@@ -322,7 +327,7 @@ function _i2c_init {
 function _i2c_deinit {
     echo "i2c deinit..."
     _i2c_gpio_deinit
-    for mod in coretemp jc42 w83795 eeprom eeprom_mb gpio-pca953x i2c_mux_pca954x i2c_i801;
+    for mod in coretemp jc42 w83795 eeprom eeprom_mb gpio-pca953x i2c_mux_pca954x i2c_i801 ingrasys_s9130_32x_psu;
     do
         _util_rmmod $mod
     done
@@ -1198,27 +1203,31 @@ function _i2c_qsfp_type_get {
     echo "transceiver=$transceiver"
 }
 
+#Init PSU Kernel Module
+function _i2c_psu_init {
+    echo "========================================================="
+    echo "# Description: I2C PSU Init"
+    echo "========================================================="
+    modprobe ingrasys_s9130_32x_psu
+
+    echo "psu1 ${I2C_ADDR_PSU1_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU1_EEPROM}/new_device
+    echo "psu2 ${I2C_ADDR_PSU2_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU2_EEPROM}/new_device
+}
 
 #Get PSU EEPROM Information
 function _i2c_psu_eeprom_get {
+    local eeprom_psu1=""
+    local eeprom_psu2=""
+
     echo "========================================================="
     echo "# Description: I2C PSU EEPROM Get..."
     echo "========================================================="
 
-    ## modprobe eeprom
-    modprobe eeprom
+    eeprom_psu1="${PATH_SYSFS_PSU1}/psu_eeprom"
+    cat ${eeprom_psu1} | hexdump -C
 
-    ## PSU(1) EEPROM
-    echo "eeprom ${I2C_ADDR_PSU1_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU1_EEPROM}/new_device
-    dd if=${PATH_SYS_I2C_DEVICES}/${I2C_BUS_PSU1_EEPROM}-$(printf "%04x" $I2C_ADDR_PSU1_EEPROM)/eeprom  of=psu1.rom
-    echo "${I2C_ADDR_PSU1_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU1_EEPROM}/delete_device
-
-    ## PSU(2) EEPROM
-    echo "eeprom ${I2C_ADDR_PSU2_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU2_EEPROM}/new_device
-    dd if=${PATH_SYS_I2C_DEVICES}/${I2C_BUS_PSU2_EEPROM}-$(printf "%04x" $I2C_ADDR_PSU2_EEPROM)/eeprom  of=psu2.rom
-    echo "${I2C_ADDR_PSU2_EEPROM}" > ${PATH_SYS_I2C_DEVICES}/i2c-${I2C_BUS_PSU2_EEPROM}/delete_device
-
-    echo "Done"
+    eeprom_psu2="${PATH_SYSFS_PSU2}/psu_eeprom"
+    cat ${eeprom_psu2} | hexdump -C
 }
 
 #Get Main Board EEPROM Information
@@ -1496,15 +1505,23 @@ function _i2c_bmc_board_type_get {
 
 #Get PSU Status
 function _i2c_psu_status {
-    # read input port 0 value from io expander
-    input_reg=${REG_PORT0_IN}
-    psuStat=`i2cget -y ${I2C_BUS_PSU_STAT} ${I2C_ADDR_MUX_9555_13} ${input_reg}`
+    local psu_abs=""
 
-    psu2PwGood=$(($((($psuStat) & 0x01))?1:0)) # PSU0_PWROK (0.0)
-    psu2Exist=$(($((($psuStat) >> 1 & 0x01))?0:1)) # PSU0_PRSNT_L (0.1)
+    psu1PwGood=`cat ${PATH_SYSFS_PSU1}/psu_pg`
+    psu_abs=`cat ${PATH_SYSFS_PSU1}/psu_abs`
+    if [ "$psu_abs" == "0" ]; then
+        psu1Exist=1
+    else
+        psu1Exist=0
+    fi
 
-    psu1PwGood=$(($((($psuStat) >> 3 & 0x01))?1:0)) # PSU1_PWROK (0.3)
-    psu1Exist=$(($((($psuStat) >> 4 & 0x01))?0:1)) # PSU1_PRSNT_L (0.4)
+    psu2PwGood=`cat ${PATH_SYSFS_PSU2}/psu_pg`
+    psu_abs=`cat ${PATH_SYSFS_PSU2}/psu_abs`
+    if [ "$psu_abs" == "0" ]; then
+        psu2Exist=1
+    else
+        psu2Exist=0
+    fi
 
     printf "PSU1 Exist:%x PSU1 PW Good:%d\n" $psu1Exist $psu1PwGood
     printf "PSU2 Exist:%d PSU2 PW Good:%d\n" $psu2Exist $psu2PwGood

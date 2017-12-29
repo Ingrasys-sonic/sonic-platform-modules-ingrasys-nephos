@@ -1,5 +1,5 @@
 /*
- * S9230-64x PSU driver
+ * S9130-32x PSU driver
  *
  * Copyright (C) 2017 Ingrasys, Inc.
  *
@@ -29,14 +29,14 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
-#include "ingrasys_s9230_64x_platform.h"
+#include "ingrasys_s9130_32x_platform.h"
 
 static ssize_t show_psu_eeprom(struct device *dev, 
                                struct device_attribute *da, 
                                char *buf);
-static struct s9230_psu_data *s9230_psu_update_status(struct device *dev);
-static struct s9230_psu_data *s9230_psu_update_eeprom(struct device *dev);
-static int s9230_psu_read_block(struct i2c_client *client, 
+static struct s9130_psu_data *s9130_psu_update_status(struct device *dev);
+static struct s9130_psu_data *s9130_psu_update_eeprom(struct device *dev);
+static int s9130_psu_read_block(struct i2c_client *client, 
                                 u8 command, 
                                 u8 *data,
                                 int data_len);
@@ -64,7 +64,7 @@ static struct i2c_client pca9555_client;
 #define TMP_75_INT_L    6
 
 /* Driver Private Data */
-struct s9230_psu_data {
+struct s9130_psu_data {
     struct device   *hwmon_dev;
     struct mutex    lock;
     char            valid;           /* !=0 if registers are valid */
@@ -76,7 +76,7 @@ struct s9230_psu_data {
     char psuPG;                      /* PSU power good */
 };
 
-enum s9230_psu_sysfs_attributes {
+enum s9130_psu_sysfs_attributes {
     PSU_POWER_GOOD,
     PSU_ABSENT,
     PSU_EEPROM
@@ -84,8 +84,8 @@ enum s9230_psu_sysfs_attributes {
 
 enum psu_index 
 { 
-    s9230_psu1, 
-    s9230_psu2
+    s9130_psu1, 
+    s9130_psu2
 };
 
 /*
@@ -96,7 +96,7 @@ show_psu_pg(struct device *dev,
             struct device_attribute *devattr, 
             char *buf)
 {
-    struct s9230_psu_data *data = s9230_psu_update_status(dev);
+    struct s9130_psu_data *data = s9130_psu_update_status(dev);
     unsigned int value;
 
     mutex_lock(&data->lock);
@@ -114,7 +114,7 @@ show_psu_abs(struct device *dev,
              struct device_attribute *devattr, 
              char *buf)
 {
-    struct s9230_psu_data *data = s9230_psu_update_status(dev);
+    struct s9130_psu_data *data = s9130_psu_update_status(dev);
     unsigned int value;
 
     mutex_lock(&data->lock);
@@ -132,7 +132,7 @@ static SENSOR_DEVICE_ATTR(psu_pg, S_IRUGO, show_psu_pg, NULL, PSU_POWER_GOOD);
 static SENSOR_DEVICE_ATTR(psu_abs, S_IRUGO, show_psu_abs, NULL, PSU_ABSENT);
 static SENSOR_DEVICE_ATTR(psu_eeprom, S_IRUGO, show_psu_eeprom, NULL, PSU_EEPROM);
 
-static struct attribute *s9230_psu_attributes[] = {
+static struct attribute *s9130_psu_attributes[] = {
     &sensor_dev_attr_psu_pg.dev_attr.attr,
     &sensor_dev_attr_psu_abs.dev_attr.attr,
     &sensor_dev_attr_psu_eeprom.dev_attr.attr,
@@ -147,14 +147,14 @@ show_psu_eeprom(struct device *dev,
                 struct device_attribute *da,
                 char *buf)
 {
-    struct s9230_psu_data *data = s9230_psu_update_eeprom(dev);
+    struct s9130_psu_data *data = s9130_psu_update_eeprom(dev);
     
     memcpy(buf, (char *)data->eeprom, EEPROM_SZ);
     return EEPROM_SZ;
 }
 
-static const struct attribute_group s9230_psu_group = {
-    .attrs = s9230_psu_attributes,
+static const struct attribute_group s9130_psu_group = {
+    .attrs = s9130_psu_attributes,
 };
 
 /* 
@@ -181,10 +181,10 @@ i2c_devices_client_address_init(struct i2c_client *client)
 }
 
 static int 
-s9230_psu_probe(struct i2c_client *client,
+s9130_psu_probe(struct i2c_client *client,
                 const struct i2c_device_id *dev_id)
 {
-    struct s9230_psu_data *data;
+    struct s9130_psu_data *data;
     int status, err;
 
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -192,12 +192,12 @@ s9230_psu_probe(struct i2c_client *client,
         goto exit;
     }
 
-    data = kzalloc(sizeof(struct s9230_psu_data), GFP_KERNEL);
+    data = kzalloc(sizeof(struct s9130_psu_data), GFP_KERNEL);
     if (!data) {
         status = -ENOMEM;
         goto exit;
     }
-    memset(data, 0, sizeof(struct s9230_psu_data));
+    memset(data, 0, sizeof(struct s9130_psu_data));
     i2c_set_clientdata(client, data);
     data->valid = 0;
     data->index = dev_id->driver_data;
@@ -213,7 +213,7 @@ s9230_psu_probe(struct i2c_client *client,
     dev_info(&client->dev, "chip found\n");
 
     /* Register sysfs hooks */
-    status = sysfs_create_group(&client->dev.kobj, &s9230_psu_group);
+    status = sysfs_create_group(&client->dev.kobj, &s9130_psu_group);
     if (status) {
         goto exit_free;
     }
@@ -230,7 +230,7 @@ s9230_psu_probe(struct i2c_client *client,
     return 0;
 
 exit_remove:
-    sysfs_remove_group(&client->dev.kobj, &s9230_psu_group);
+    sysfs_remove_group(&client->dev.kobj, &s9130_psu_group);
 exit_free:
     kfree(data);
 exit:
@@ -239,12 +239,12 @@ exit:
 }
 
 static int 
-s9230_psu_remove(struct i2c_client *client)
+s9130_psu_remove(struct i2c_client *client)
 {
-    struct s9230_psu_data *data = i2c_get_clientdata(client);
+    struct s9130_psu_data *data = i2c_get_clientdata(client);
 
     hwmon_device_unregister(data->hwmon_dev);
-    sysfs_remove_group(&client->dev.kobj, &s9230_psu_group);
+    sysfs_remove_group(&client->dev.kobj, &s9130_psu_group);
     kfree(data);
     
     return 0;
@@ -255,7 +255,7 @@ s9230_psu_remove(struct i2c_client *client)
  * psu eeprom read utility
  */
 static int 
-s9230_psu_read_block(struct i2c_client *client, 
+s9130_psu_read_block(struct i2c_client *client, 
                      u8 command, 
                      u8 *data,
                      int data_len)
@@ -277,11 +277,11 @@ s9230_psu_read_block(struct i2c_client *client,
 /* 
  * update eeprom content
  */
-static struct s9230_psu_data 
-*s9230_psu_update_eeprom(struct device *dev)
+static struct s9130_psu_data 
+*s9130_psu_update_eeprom(struct device *dev)
 {
     struct i2c_client *client = to_i2c_client(dev);
-    struct s9230_psu_data *data = i2c_get_clientdata(client);
+    struct s9130_psu_data *data = i2c_get_clientdata(client);
     s32 status = 0;
     int psu_pwrok = 0;
     int psu_prsnt_l = 0;
@@ -298,7 +298,7 @@ static struct s9230_psu_data
 
         /*read psu status from io expander*/
 
-        if (data->index == s9230_psu1) {
+        if (data->index == s9130_psu1) {
             psu_pwrok = PSU1_PWROK;
             psu_prsnt_l = PSU1_PRSNT_L;
         } else {
@@ -314,7 +314,7 @@ static struct s9230_psu_data
             memset(data->eeprom, 0, EEPROM_SZ);
 
             //read eeprom
-            status = s9230_psu_read_block(client, 0, data->eeprom, 
+            status = s9130_psu_read_block(client, 0, data->eeprom, 
                                                ARRAY_SIZE(data->eeprom));
 
             if (status < 0) {
@@ -337,11 +337,11 @@ static struct s9230_psu_data
 /* 
  * update psu status
  */
-static struct s9230_psu_data 
-*s9230_psu_update_status(struct device *dev)
+static struct s9130_psu_data 
+*s9130_psu_update_status(struct device *dev)
 {
     struct i2c_client *client = to_i2c_client(dev);
-    struct s9230_psu_data *data = i2c_get_clientdata(client);
+    struct s9130_psu_data *data = i2c_get_clientdata(client);
     s32 status = 0;
     int psu_pwrok = 0;
     int psu_prsnt_l = 0;
@@ -355,7 +355,7 @@ static struct s9230_psu_data
 
     /*read psu status from io expander*/
 
-    if (data->index == s9230_psu1) {
+    if (data->index == s9130_psu1) {
         psu_pwrok = PSU1_PWROK;
         psu_prsnt_l = PSU1_PRSNT_L;
     } else {
@@ -370,38 +370,38 @@ static struct s9230_psu_data
     return data;
 }
 
-static const struct i2c_device_id s9230_psu_id[] = {
-    { "psu1", s9230_psu1 },
-    { "psu2", s9230_psu2 },
+static const struct i2c_device_id s9130_psu_id[] = {
+    { "psu1", s9130_psu1 },
+    { "psu2", s9130_psu2 },
     {}
 };
 
-MODULE_DEVICE_TABLE(i2c, s9230_psu_id);
+MODULE_DEVICE_TABLE(i2c, s9130_psu_id);
 
-static struct i2c_driver s9230_psu_driver = {
+static struct i2c_driver s9130_psu_driver = {
     .class        = I2C_CLASS_HWMON,
     .driver = {
         .name     = DRIVER_NAME,
     },
-    .probe        = s9230_psu_probe,
-    .remove       = s9230_psu_remove,
-    .id_table     = s9230_psu_id,
+    .probe        = s9130_psu_probe,
+    .remove       = s9130_psu_remove,
+    .id_table     = s9130_psu_id,
     .address_list = normal_i2c,
 };
 
-static int __init s9230_psu_init(void)
+static int __init s9130_psu_init(void)
 {
-    return i2c_add_driver(&s9230_psu_driver);
+    return i2c_add_driver(&s9130_psu_driver);
 }
 
-static void __exit s9230_psu_exit(void)
+static void __exit s9130_psu_exit(void)
 {
-    i2c_del_driver(&s9230_psu_driver);
+    i2c_del_driver(&s9130_psu_driver);
 }
 
-module_init(s9230_psu_init);
-module_exit(s9230_psu_exit);
+module_init(s9130_psu_init);
+module_exit(s9130_psu_exit);
 
 MODULE_AUTHOR("Jason Tsai <feng.lee.usa@ingrasys.com>");
-MODULE_DESCRIPTION("S9230-64X psu driver");
+MODULE_DESCRIPTION("S9130-32X psu driver");
 MODULE_LICENSE("GPL");
