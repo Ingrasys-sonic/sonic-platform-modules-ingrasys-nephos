@@ -181,7 +181,7 @@ I2C_ADDR_MUX_9548_10=0x74
 
 ### GPIO Expander
 I2C_ADDR_MUX_9539_0=0x76 # LED & HW ID
-I2C_ADDR_MUX_9539_1=0x75 # SYS config
+I2C_ADDR_MUX_9539_1=0x76 # SYS config
 I2C_ADDR_MUX_9539_2=0x77 # on CPU board, STATUS and ERR from CPLD
 I2C_ADDR_MUX_9555_0=0x20 # on FAN board, fan status and led config
 I2C_ADDR_MUX_9555_1=0x24 # on BMC board, INT and HW ID
