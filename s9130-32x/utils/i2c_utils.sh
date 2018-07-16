@@ -746,14 +746,14 @@ function _i2c_gpio_deinit {
 function _i2c_led_fan_tray_status_set {
     echo "FAN Tray Status Setup"
     #FAN Status get
-    FAN1_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan1_alarm`
-    FAN2_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan2_alarm`
-    FAN3_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan3_alarm`
-    FAN4_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan4_alarm`
-    FAN5_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan5_alarm`
-    FAN6_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan6_alarm`
-    FAN7_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan7_alarm`
-    FAN8_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan8_alarm`
+    FAN1_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan8_alarm`
+    FAN2_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan7_alarm`
+    FAN3_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan6_alarm`
+    FAN4_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan5_alarm`
+    FAN5_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan4_alarm`
+    FAN6_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan3_alarm`
+    FAN7_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan2_alarm`
+    FAN8_ALARM=`cat ${PATH_HWMON_W83795_DEVICE}/device/fan1_alarm`
 
     # check if io expander for fan tray exist 
     result=`i2cget -y ${I2C_BUS_FANTRAY_LED} ${I2C_ADDR_MUX_9535_11} ${REG_PORT0_IN} 2>/dev/null`
