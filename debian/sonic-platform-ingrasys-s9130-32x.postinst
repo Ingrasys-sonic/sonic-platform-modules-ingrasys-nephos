@@ -1,6 +1,6 @@
 # Automatically added by dh_systemd_enable
 # This will only remove masks created by d-s-h on package removal.
-deb-systemd-helper unmask s9130-monitor-32x.service >/dev/null || true
+deb-systemd-helper unmask s9130-32x-monitor.service >/dev/null || true
 deb-systemd-helper unmask fancontrol.service >/dev/null || true
 deb-systemd-helper unmask qsfp-monitor.service >/dev/null || true
 # Generate kernel modules.dep and map files for add eeprom_mb.
